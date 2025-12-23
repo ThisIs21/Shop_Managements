@@ -142,6 +142,31 @@
               </tbody>
             </table>
           </div>
+          <!-- Pagination Controls -->
+          <div class="flex items-center justify-between mt-3">
+            <div class="text-sm text-slate-600">
+              Showing page {{ page }} / {{ totalPages }}
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                @click="prevPage"
+                class="px-3 py-1 border rounded bg-white"
+              >
+                Prev
+              </button>
+              <select v-model="perPage" class="border rounded p-1 text-sm">
+                <option :value="5">5</option>
+                <option :value="10">10</option>
+                <option :value="25">25</option>
+              </select>
+              <button
+                @click="nextPage"
+                class="px-3 py-1 border rounded bg-white"
+              >
+                Next
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Modal untuk Edit -->
@@ -279,7 +304,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import axios from "axios";
 import OwnerLayouts from "../components/OwnerLayouts.vue";
 
@@ -299,6 +324,18 @@ const formData = ref({
   sell_price: 0,
   stock: 0,
 });
+// Pagination
+const productsAll = ref([]);
+const page = ref(1);
+const perPage = ref(10);
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil((productsAll.value || []).length / perPage.value))
+);
+
+const updatePagination = () => {
+  const start = (page.value - 1) * perPage.value;
+  products.value = productsAll.value.slice(start, start + perPage.value);
+};
 
 const fetchProducts = async () => {
   try {
@@ -313,7 +350,9 @@ const fetchProducts = async () => {
       headers: { Authorization: `Bearer ${token}` },
     });
     console.log("Products API Response:", response.data);
-    products.value = response.data.data || [];
+    productsAll.value = response.data.data || [];
+    page.value = 1;
+    updatePagination();
   } catch (error) {
     console.error(
       "Error fetching products:",
@@ -505,6 +544,15 @@ onMounted(() => {
   fetchUnits();
   fetchSuppliers();
 });
+
+watch([page, perPage], () => updatePagination());
+
+const prevPage = () => {
+  if (page.value > 1) page.value--;
+};
+const nextPage = () => {
+  if (page.value < totalPages.value) page.value++;
+};
 </script>
 
 <style scoped>

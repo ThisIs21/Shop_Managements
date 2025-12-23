@@ -5,9 +5,10 @@ import (
 	"app-penjualan/internal/handlers"
 	"app-penjualan/internal/middlewares"
 	"app-penjualan/internal/services"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
-	"net/http"
 )
 
 func Register(r *gin.Engine, db *gorm.DB, cfg *config.AppConfig) {
@@ -52,7 +53,7 @@ func Register(r *gin.Engine, db *gorm.DB, cfg *config.AppConfig) {
 	returnH := handlers.NewReturnHandler(db)
 	reportH := handlers.NewReportHandler(services.NewReportService(db))
 	historyH := handlers.NewHistoryHandler(services.NewHistoryService(db))
-	
+
 	// =======================
 	// OWNER (Full Access)
 	// =======================
@@ -98,6 +99,8 @@ func Register(r *gin.Engine, db *gorm.DB, cfg *config.AppConfig) {
 		// Semua laporan
 		owner.GET("/reports", reportH.GenerateReport)
 		owner.GET("/reports/inventory-detail", reportH.InventoryDetail)
+		// Dashboard summary for Owner
+		owner.GET("/dashboard/summary", reportH.DashboardSummary)
 
 		// Approval Returns
 		// Sale Returns Approval (OWNER)

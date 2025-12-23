@@ -76,6 +76,31 @@
               </tbody>
             </table>
           </div>
+          <!-- Pagination Controls -->
+          <div class="flex items-center justify-between mt-3">
+            <div class="text-sm text-slate-600">
+              Showing page {{ page }} / {{ totalPages }}
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                @click="prevPage"
+                class="px-3 py-1 border rounded bg-white"
+              >
+                Prev
+              </button>
+              <select v-model="perPage" class="border rounded p-1 text-sm">
+                <option :value="5">5</option>
+                <option :value="10">10</option>
+                <option :value="25">25</option>
+              </select>
+              <button
+                @click="nextPage"
+                class="px-3 py-1 border rounded bg-white"
+              >
+                Next
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Modal -->
@@ -141,7 +166,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import axios from "axios";
 import OwnerLayouts from "../components/OwnerLayouts.vue";
 
@@ -150,6 +175,18 @@ const loading = ref(true);
 const showModal = ref(false);
 const isEditMode = ref(false);
 const formData = ref({ id: null, name: "", contact: "", address: "" });
+// Pagination
+const suppliersAll = ref([]);
+const page = ref(1);
+const perPage = ref(10);
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil((suppliersAll.value || []).length / perPage.value))
+);
+
+const updatePagination = () => {
+  const start = (page.value - 1) * perPage.value;
+  suppliers.value = suppliersAll.value.slice(start, start + perPage.value);
+};
 
 const fetchSuppliers = async () => {
   try {
@@ -160,7 +197,9 @@ const fetchSuppliers = async () => {
         headers: { Authorization: `Bearer ${token}` },
       }
     );
-    suppliers.value = res.data?.data || [];
+    suppliersAll.value = res.data?.data || [];
+    page.value = 1;
+    updatePagination();
   } catch (err) {
     console.error("Error fetching suppliers:", err.response?.data || err);
   } finally {
@@ -225,4 +264,13 @@ const confirmDelete = async (id) => {
 onMounted(() => {
   fetchSuppliers();
 });
+
+watch([page, perPage], () => updatePagination());
+
+const prevPage = () => {
+  if (page.value > 1) page.value--;
+};
+const nextPage = () => {
+  if (page.value < totalPages.value) page.value++;
+};
 </script>

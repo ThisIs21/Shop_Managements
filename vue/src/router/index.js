@@ -39,6 +39,7 @@ import ListCategoryOwner from "@/views/ListCategoryOwner.vue";
 import StockSnapshotOwners from "@/views/StockSnapshotOwners.vue";
 import GoodsReceipt from "@/views/GoodsReceipt.vue";
 import StockOpnameHistory from "@/views/StockOpnameHistory.vue";
+import MasterData from "@/views/owner/MasterData.vue";
 
 const routes = [
   // ======================= LOGIN =======================
@@ -74,6 +75,12 @@ const routes = [
     path: "/dashboard-owner",
     name: "DashboardOwner",
     component: DashboardOwner,
+    meta: { requiresAuth: true, roles: ["OWNER"] },
+  },
+  {
+    path: "/master-data",
+    name: "MasterDataOwner",
+    component: MasterData,
     meta: { requiresAuth: true, roles: ["OWNER"] },
   },
   {

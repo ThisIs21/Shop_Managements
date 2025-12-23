@@ -207,13 +207,46 @@
             </form>
           </div>
         </div>
+        <!-- Pagination Controls -->
+        <div class="flex items-center justify-between mt-3 px-4">
+          <div class="text-sm text-slate-600">
+            Showing page {{ page }} / {{ totalPages }}
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              @click="
+                () => {
+                  if (page > 1) page--;
+                }
+              "
+              class="px-3 py-1 border rounded bg-white"
+            >
+              Prev
+            </button>
+            <select v-model="perPage" class="border rounded p-1 text-sm">
+              <option :value="5">5</option>
+              <option :value="10">10</option>
+              <option :value="25">25</option>
+            </select>
+            <button
+              @click="
+                () => {
+                  if (page < totalPages) page++;
+                }
+              "
+              class="px-3 py-1 border rounded bg-white"
+            >
+              Next
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </OwnerLayouts>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import axios from "axios";
 import OwnerLayouts from "../components/OwnerLayouts.vue";
 
@@ -228,6 +261,18 @@ const formData = ref({
   status: "active",
   id: null,
 });
+// Pagination
+const usersAll = ref([]);
+const page = ref(1);
+const perPage = ref(10);
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil((usersAll.value || []).length / perPage.value))
+);
+
+const updatePagination = () => {
+  const start = (page.value - 1) * perPage.value;
+  users.value = usersAll.value.slice(start, start + perPage.value);
+};
 
 const fetchUsers = async () => {
   try {
@@ -253,10 +298,13 @@ const fetchUsers = async () => {
     console.log("API Response data:", response.data);
 
     if (response.data && response.data.data) {
-      users.value = response.data.data;
+      usersAll.value = response.data.data;
+      page.value = 1;
+      updatePagination();
     } else {
       console.error("Invalid API response format. Expected 'data' field.");
-      users.value = [];
+      usersAll.value = [];
+      updatePagination();
     }
   } catch (error) {
     if (error.response) {
@@ -415,6 +463,8 @@ onMounted(() => {
   fetchUsers();
   fetchRoles();
 });
+
+watch([page, perPage], () => updatePagination());
 </script>
 
 <style scoped>

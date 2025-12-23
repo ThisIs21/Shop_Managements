@@ -135,13 +135,46 @@
             </form>
           </div>
         </div>
+        <!-- Pagination Controls -->
+        <div class="flex items-center justify-between mt-3 px-4">
+          <div class="text-sm text-slate-600">
+            Showing page {{ page }} / {{ totalPages }}
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              @click="
+                () => {
+                  if (page > 1) page--;
+                }
+              "
+              class="px-3 py-1 border rounded bg-white"
+            >
+              Prev
+            </button>
+            <select v-model="perPage" class="border rounded p-1 text-sm">
+              <option :value="5">5</option>
+              <option :value="10">10</option>
+              <option :value="25">25</option>
+            </select>
+            <button
+              @click="
+                () => {
+                  if (page < totalPages) page++;
+                }
+              "
+              class="px-3 py-1 border rounded bg-white"
+            >
+              Next
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </OwnerLayouts>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import axios from "axios";
 import OwnerLayouts from "../components/OwnerLayouts.vue";
 
@@ -150,6 +183,18 @@ const loading = ref(true);
 const showModal = ref(false);
 const isEditMode = ref(false);
 const formData = ref({ name: "", id: null });
+// Pagination
+const unitsAll = ref([]);
+const page = ref(1);
+const perPage = ref(10);
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil((unitsAll.value || []).length / perPage.value))
+);
+
+const updatePagination = () => {
+  const start = (page.value - 1) * perPage.value;
+  units.value = unitsAll.value.slice(start, start + perPage.value);
+};
 
 const fetchUnits = async () => {
   try {
@@ -168,10 +213,13 @@ const fetchUnits = async () => {
     );
 
     if (response.data && response.data.data) {
-      units.value = response.data.data;
+      unitsAll.value = response.data.data;
+      page.value = 1;
+      updatePagination();
     } else {
       console.error('Invalid API response format. Expected "data" field.');
-      units.value = [];
+      unitsAll.value = [];
+      updatePagination();
     }
   } catch (error) {
     console.error(
@@ -260,6 +308,8 @@ const confirmDelete = async (id) => {
 onMounted(() => {
   fetchUnits();
 });
+
+watch([page, perPage], () => updatePagination());
 </script>
 
 <style scoped>

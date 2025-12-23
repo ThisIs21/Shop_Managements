@@ -8,10 +8,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gin-gonic/gin"
-	"github.com/jung-kurt/gofpdf"
 	"app-penjualan/internal/services"
 	"app-penjualan/internal/utils"
+
+	"github.com/gin-gonic/gin"
+	"github.com/jung-kurt/gofpdf"
 )
 
 type ReportHandler struct {
@@ -24,7 +25,7 @@ func NewReportHandler(s *services.ReportService) *ReportHandler {
 
 // helper export CSV
 func writeCSV(c *gin.Context, header []string, rows [][]string, filename string) {
-// ... (Kode writeCSV tidak berubah) ...
+	// ... (Kode writeCSV tidak berubah) ...
 	buf := &bytes.Buffer{}
 	w := csv.NewWriter(buf)
 	_ = w.Write(header)
@@ -37,7 +38,7 @@ func writeCSV(c *gin.Context, header []string, rows [][]string, filename string)
 
 // helper export PDF
 func writePDF(c *gin.Context, title string, header []string, rows [][]string, filename string) {
-// ... (Kode writePDF tidak berubah) ...
+	// ... (Kode writePDF tidak berubah) ...
 	pdf := gofpdf.New("P", "mm", "A4", "")
 	pdf.AddPage()
 	pdf.SetFont("Arial", "B", 14)
@@ -98,7 +99,7 @@ func (h *ReportHandler) GenerateReport(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 
 	// Tentukan apakah kita perlu data DETAIL
-	needsDetail := c.DefaultQuery("detail", "false") == "true" 
+	needsDetail := c.DefaultQuery("detail", "false") == "true"
 
 	switch reportType {
 	case "sales":
@@ -110,17 +111,17 @@ func (h *ReportHandler) GenerateReport(c *gin.Context) {
 	case "purchase-returns":
 		data, err2 = h.Svc.PurchaseReturnSummary(by, dr, month)
 	case "stock-opnames":
-        // 💡 MODIFIKASI DIMULAI DI SINI:
-        // Cek query parameter 'detail'. Jika true, panggil service Detail.
+		// 💡 MODIFIKASI DIMULAI DI SINI:
+		// Cek query parameter 'detail'. Jika true, panggil service Detail.
 		if needsDetail {
-            // Asumsi Anda sudah membuat fungsi di ReportService untuk detail.
-            // Nama fungsi harus diganti sesuai yang Anda buat (misalnya StockOpnameDetail)
-            data, err2 = h.Svc.StockOpnameDetail(dr) // Contoh pemanggilan dengan DateRange
+			// Asumsi Anda sudah membuat fungsi di ReportService untuk detail.
+			// Nama fungsi harus diganti sesuai yang Anda buat (misalnya StockOpnameDetail)
+			data, err2 = h.Svc.StockOpnameDetail(dr) // Contoh pemanggilan dengan DateRange
 		} else {
-            // Jika tidak ada parameter 'detail' atau 'detail=false', gunakan ringkasan default.
+			// Jika tidak ada parameter 'detail' atau 'detail=false', gunakan ringkasan default.
 			data, err2 = h.Svc.StockOpnameSummary(by, dr, month)
 		}
-        // 💡 MODIFIKASI BERAKHIR DI SINI.
+		// 💡 MODIFIKASI BERAKHIR DI SINI.
 
 	case "stock-snapshot":
 		data, err2 = h.Svc.StockSnapshot()
@@ -141,13 +142,13 @@ func (h *ReportHandler) GenerateReport(c *gin.Context) {
 	}
 
 	// Bagian export CSV dan PDF harus dimodifikasi total untuk menangani struktur data detail!
-    // Karena struktur data detail sangat berbeda dari ringkasan, bagian ini berpotensi error/rusak.
-    // Jika data adalah DETAIL Stok Opname, Anda perlu header dan logic rows yang berbeda.
-    // Untuk saat ini, kita biarkan logic export default berjalan, dan hanya fokus pada JSON response.
-    
-    // ... (Kode export CSV dan PDF tidak berubah, karena ini hanya fokus pada JSON data) ...
-    // HATI-HATI: Jika data yang dikembalikan adalah detail, logic di bawah ini untuk CSV/PDF 
-    // ('period', 'trx', 'total') tidak akan cocok dan bisa menyebabkan crash atau data salah.
+	// Karena struktur data detail sangat berbeda dari ringkasan, bagian ini berpotensi error/rusak.
+	// Jika data adalah DETAIL Stok Opname, Anda perlu header dan logic rows yang berbeda.
+	// Untuk saat ini, kita biarkan logic export default berjalan, dan hanya fokus pada JSON response.
+
+	// ... (Kode export CSV dan PDF tidak berubah, karena ini hanya fokus pada JSON data) ...
+	// HATI-HATI: Jika data yang dikembalikan adalah detail, logic di bawah ini untuk CSV/PDF
+	// ('period', 'trx', 'total') tidak akan cocok dan bisa menyebabkan crash atau data salah.
 
 	export := c.Query("export")
 	if export == "csv" {
@@ -200,4 +201,68 @@ func (h *ReportHandler) InventoryDetail(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": data})
+}
+
+// DashboardSummary returns simple aggregated totals for owner dashboard
+func (h *ReportHandler) DashboardSummary(c *gin.Context) {
+	// Support query params:
+	// - period: today | month | year (default: month)
+	// - from, to: explicit YYYY-MM-DD range (overrides period when both provided)
+	period := c.Query("period")
+	from := c.Query("from")
+	to := c.Query("to")
+
+	var totalSales float64
+	var totalPurchases float64
+	var totalReturns float64
+
+	// Helper to build date condition and args
+	buildDateCond := func(base string) (string, []interface{}) {
+		if from != "" && to != "" {
+			return base + " AND DATE(date) BETWEEN ? AND ?", []interface{}{from, to}
+		}
+		switch period {
+		case "today":
+			return base + " AND DATE(date) = CURRENT_DATE()", nil
+		case "year":
+			return base + " AND YEAR(date) = YEAR(NOW())", nil
+		default:
+			// default to current month
+			return base + " AND MONTH(date) = MONTH(NOW()) AND YEAR(date) = YEAR(NOW())", nil
+		}
+	}
+
+	// Sales: include all sales (sum of total)
+	salesBase := "SELECT COALESCE(SUM(total),0) FROM sales WHERE 1=1"
+	salesQuery, salesArgs := buildDateCond(salesBase)
+	if err := h.Svc.DB.Raw(salesQuery, salesArgs...).Scan(&totalSales).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Purchases: only count purchases that have been processed by kepala gudang
+	// (either approved OR rejected) — i.e. approved_by set or status in ('APPROVED','RECEIVED','REJECTED')
+	purchasesBase := "SELECT COALESCE(SUM(total),0) FROM purchases WHERE (approved_by IS NOT NULL OR status IN ('APPROVED','RECEIVED','REJECTED'))"
+	purchasesQuery, purchasesArgs := buildDateCond(purchasesBase)
+	if err := h.Svc.DB.Raw(purchasesQuery, purchasesArgs...).Scan(&totalPurchases).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Returns (sales returns): only include returns that have been approved
+	returnsBase := "SELECT COALESCE(SUM(total),0) FROM sale_returns WHERE status = 'APPROVED'"
+	returnsQuery, returnsArgs := buildDateCond(returnsBase)
+	if err := h.Svc.DB.Raw(returnsQuery, returnsArgs...).Scan(&totalReturns).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{
+		"total_sales":     totalSales,
+		"total_purchases": totalPurchases,
+		"total_returns":   totalReturns,
+		"period":          period,
+		"from":            from,
+		"to":              to,
+	}})
 }
