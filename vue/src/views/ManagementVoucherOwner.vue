@@ -169,13 +169,46 @@
             </form>
           </div>
         </div>
+        <!-- Pagination Controls -->
+        <div class="flex items-center justify-between mt-3 px-4">
+          <div class="text-sm text-slate-600">
+            Showing page {{ page }} / {{ totalPages }}
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              @click="
+                () => {
+                  if (page > 1) page--;
+                }
+              "
+              class="px-3 py-1 border rounded bg-white"
+            >
+              Prev
+            </button>
+            <select v-model="perPage" class="border rounded p-1 text-sm">
+              <option :value="5">5</option>
+              <option :value="10">10</option>
+              <option :value="25">25</option>
+            </select>
+            <button
+              @click="
+                () => {
+                  if (page < totalPages) page++;
+                }
+              "
+              class="px-3 py-1 border rounded bg-white"
+            >
+              Next
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </OwnerLayouts>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import axios from "axios";
 import OwnerLayouts from "../components/OwnerLayouts.vue";
 
@@ -190,6 +223,18 @@ const formData = ref({
   value: 0,
   active: true,
 });
+// Pagination
+const vouchersAll = ref([]);
+const page = ref(1);
+const perPage = ref(10);
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil((vouchersAll.value || []).length / perPage.value))
+);
+
+const updatePagination = () => {
+  const start = (page.value - 1) * perPage.value;
+  vouchers.value = vouchersAll.value.slice(start, start + perPage.value);
+};
 
 const fetchVouchers = async () => {
   try {
@@ -197,7 +242,9 @@ const fetchVouchers = async () => {
     const res = await axios.get("http://localhost:8081/api/v1/vouchers", {
       headers: { Authorization: `Bearer ${token}` },
     });
-    vouchers.value = res.data.data || [];
+    vouchersAll.value = res.data.data || [];
+    page.value = 1;
+    updatePagination();
   } catch (err) {
     console.error("Error fetching vouchers:", err);
   } finally {
@@ -275,4 +322,6 @@ const confirmDelete = async (id) => {
 onMounted(() => {
   fetchVouchers();
 });
+
+watch([page, perPage], () => updatePagination());
 </script>

@@ -94,6 +94,31 @@
               </tbody>
             </table>
           </div>
+          <!-- Pagination Controls -->
+          <div class="flex items-center justify-between mt-3">
+            <div class="text-sm text-slate-600">
+              Showing page {{ page }} / {{ totalPages }}
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                @click="prevPage"
+                class="px-3 py-1 border rounded bg-white"
+              >
+                Prev
+              </button>
+              <select v-model="perPage" class="border rounded p-1 text-sm">
+                <option :value="5">5</option>
+                <option :value="10">10</option>
+                <option :value="25">25</option>
+              </select>
+              <button
+                @click="nextPage"
+                class="px-3 py-1 border rounded bg-white"
+              >
+                Next
+              </button>
+            </div>
+          </div>
         </div>
 
         <div
@@ -141,7 +166,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import axios from "axios";
 import OwnerLayouts from "../components/OwnerLayouts.vue";
 
@@ -150,6 +175,25 @@ const loading = ref(true);
 const showModal = ref(false);
 const isEditMode = ref(false);
 const formData = ref({ name: "", id: null });
+// Pagination
+const categoriesAll = ref([]);
+const page = ref(1);
+const perPage = ref(10);
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil((categoriesAll.value || []).length / perPage.value))
+);
+
+const updatePagination = () => {
+  const start = (page.value - 1) * perPage.value;
+  categories.value = categoriesAll.value.slice(start, start + perPage.value);
+};
+
+const prevPage = () => {
+  if (page.value > 1) page.value--;
+};
+const nextPage = () => {
+  if (page.value < totalPages.value) page.value++;
+};
 
 const fetchCategories = async () => {
   try {
@@ -168,10 +212,13 @@ const fetchCategories = async () => {
     );
 
     if (response.data && response.data.data) {
-      categories.value = response.data.data;
+      categoriesAll.value = response.data.data;
+      page.value = 1;
+      updatePagination();
     } else {
       console.error('Invalid API response format. Expected "data" field.');
-      categories.value = [];
+      categoriesAll.value = [];
+      updatePagination();
     }
   } catch (error) {
     console.error(
@@ -259,6 +306,9 @@ const confirmDelete = async (id) => {
 onMounted(() => {
   fetchCategories();
 });
+
+// Watch page/perPage so UI will update
+watch([page, perPage], () => updatePagination());
 </script>
 
 <style scoped>

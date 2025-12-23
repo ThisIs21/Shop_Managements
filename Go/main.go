@@ -42,7 +42,7 @@ func InitApp() {
 
 	// Konfigurasi dan gunakan middleware CORS
 	corsConfig := cors.DefaultConfig()
-	corsConfig.AllowOrigins = []string{"http://localhost:12345", "http://192.168.100.75:12345"}
+	corsConfig.AllowOrigins = []string{"http://localhost:12345"}
 	corsConfig.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
 	corsConfig.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
 	r.Use(cors.New(corsConfig))

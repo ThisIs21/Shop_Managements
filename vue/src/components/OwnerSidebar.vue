@@ -87,6 +87,14 @@
           <ul v-if="isManagementDropdownOpen" class="pl-8 mt-1 space-y-1">
             <li>
               <router-link
+                to="/master-data"
+                class="block p-2 rounded-lg text-[#60758a] hover:bg-[#f0f2f5]"
+                :class="{ 'bg-[#f0f2f5]': route.path === '/master-data' }"
+                >Master Data</router-link
+              >
+            </li>
+            <li>
+              <router-link
                 to="/management-user"
                 class="block p-2 rounded-lg text-[#60758a] hover:bg-[#f0f2f5]"
                 :class="{ 'bg-[#f0f2f5]': route.path === '/management-user' }"
