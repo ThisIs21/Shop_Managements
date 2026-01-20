@@ -1,226 +1,354 @@
 <template>
   <CashierLayouts>
-    <div>
-      <div class="flex flex-wrap justify-between gap-3 p-4">
-        <p
-          class="text-[#111418] tracking-light text-[32px] font-bold leading-tight min-w-72"
+    <div class="bg-gray-50 min-h-screen">
+      <!-- Header -->
+      <div class="p-8 bg-white border-b border-[#dbe0e6]">
+        <h1
+          class="text-[#111418] tracking-light text-[32px] font-bold leading-tight"
         >
-          Selamat datang, {{ userName }}
+          Welcome back, {{ userName }}! 👋
+        </h1>
+        <p class="text-[#60758a] text-sm font-normal leading-normal mt-2">
+          Here's your sales performance for today and recent transactions.
         </p>
       </div>
 
-      <!-- Filter Tanggal -->
-      <div class="p-4 bg-[#f0f2f5] rounded-lg">
-        <div class="flex flex-wrap gap-4 items-end">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1"
-              >Dari Tanggal</label
-            >
-            <input
-              type="date"
-              v-model="fromDate"
-              class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1"
-              >Sampai Tanggal</label
-            >
-            <input
-              type="date"
-              v-model="toDate"
-              class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <button
-            @click="fetchDashboardData"
-            :disabled="loadingHistory"
-            class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50"
+      <div class="p-8">
+        <!-- KPI Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div
+            class="rounded-lg p-6 border border-[#dbe0e6] bg-gradient-to-br from-blue-50 to-blue-100"
           >
-            {{ loadingHistory ? "Loading..." : "Filter" }}
-          </button>
-          <button
-            @click="resetFilter"
-            class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
+            <p class="text-[#60758a] text-sm font-medium">Total Sales</p>
+            <p class="text-[#111418] text-3xl font-bold leading-tight mt-2">
+              {{ formatCurrency(totalSales) }}
+            </p>
+            <p class="text-blue-600 text-xs font-semibold mt-2">
+              {{ salesCount }} transactions
+            </p>
+          </div>
+
+          <div
+            class="rounded-lg p-6 border border-[#dbe0e6] bg-gradient-to-br from-green-50 to-green-100"
           >
-            Reset (10 Terakhir)
-          </button>
+            <p class="text-[#60758a] text-sm font-medium">Avg Transaction</p>
+            <p class="text-[#111418] text-3xl font-bold leading-tight mt-2">
+              {{ formatCurrency(avgTransaction) }}
+            </p>
+            <p class="text-green-600 text-xs font-semibold mt-2">Per sale</p>
+          </div>
+
+          <div
+            class="rounded-lg p-6 border border-[#dbe0e6] bg-gradient-to-br from-purple-50 to-purple-100"
+          >
+            <p class="text-[#60758a] text-sm font-medium">Highest Sale</p>
+            <p class="text-[#111418] text-3xl font-bold leading-tight mt-2">
+              {{ formatCurrency(highestSale) }}
+            </p>
+            <p class="text-purple-600 text-xs font-semibold mt-2">
+              Today's peak
+            </p>
+          </div>
+
+          <div
+            class="rounded-lg p-6 border border-[#dbe0e6] bg-gradient-to-br from-amber-50 to-amber-100"
+          >
+            <p class="text-[#60758a] text-sm font-medium">Total Items</p>
+            <p class="text-[#111418] text-3xl font-bold leading-tight mt-2">
+              {{ totalItems }}
+            </p>
+            <p class="text-amber-600 text-xs font-semibold mt-2">Sold</p>
+          </div>
         </div>
-        <p v-if="fromDate || toDate" class="text-sm text-gray-600 mt-2">
-          Filter aktif: {{ fromDate || "N/A" }} s/d {{ toDate || "N/A" }}
-        </p>
-      </div>
 
-      <hr class="my-4" />
-
-      <div class="p-4">
-        <p
-          class="text-[#111418] tracking-light text-2xl font-bold leading-tight"
-        >
-          History Penjualan ({{
-            fromDate || toDate ? "Filtered" : "10 Terakhir"
-          }})
-        </p>
-        <div
-          class="mt-4 overflow-x-auto rounded-lg border border-[#dbe0e6] bg-white"
-        >
-          <table class="min-w-full">
-            <thead>
-              <tr class="bg-gray-100">
-                <th
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Tanggal
-                </th>
-                <th
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Nomor Transaksi
-                </th>
-                <th
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Total
-                </th>
-                <th
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Print PDF
-                </th>
-                <th
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Detail
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="loadingHistory">
-                <td colspan="5" class="text-center py-4">Loading history...</td>
-              </tr>
-              <tr v-else-if="salesHistory.length === 0">
-                <td colspan="5" class="text-center py-4 text-gray-500">
-                  Tidak ada data penjualan.
-                </td>
-              </tr>
-              <tr
-                v-else
-                v-for="sale in salesHistory"
-                :key="sale.ID"
-                class="border-t border-t-[#dbe0e6]"
+        <!-- Filter Section -->
+        <div class="bg-white rounded-lg border border-[#dbe0e6] p-6 mb-8">
+          <h3 class="text-[#111418] text-lg font-semibold mb-4">
+            Filter Sales History
+          </h3>
+          <div class="flex flex-wrap gap-4 items-end">
+            <div>
+              <label class="block text-sm font-medium text-[#111418] mb-2"
+                >From Date</label
               >
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {{ formatDate(sale.Date) || "N/A" }}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {{ sale.transaction_number || `TRX-${sale.ID || "N/A"}` }}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {{ formatCurrency(sale.Total) || "Rp 0" }}
-                </td>
-                <td
-                  class="px-6 py-4 whitespace-nowrap text-sm text-blue-500 hover:text-blue-700 cursor-pointer"
+              <input
+                type="date"
+                v-model="fromDate"
+                class="px-3 py-2 border border-[#dbe0e6] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-[#111418] mb-2"
+                >To Date</label
+              >
+              <input
+                type="date"
+                v-model="toDate"
+                class="px-3 py-2 border border-[#dbe0e6] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <button
+              @click="fetchDashboardData"
+              :disabled="loadingHistory"
+              class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50 transition"
+            >
+              {{ loadingHistory ? "Loading..." : "Apply Filter" }}
+            </button>
+            <button
+              @click="resetFilter"
+              class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-medium transition"
+            >
+              Reset
+            </button>
+          </div>
+          <p v-if="fromDate || toDate" class="text-sm text-[#60758a] mt-3">
+            📅 Showing: {{ fromDate || "Start" }} to {{ toDate || "End" }}
+          </p>
+        </div>
+
+        <!-- Sales History Table -->
+        <div
+          class="rounded-lg border border-[#dbe0e6] bg-white overflow-hidden shadow-sm"
+        >
+          <div class="border-b border-[#dbe0e6] p-6">
+            <h3 class="text-[#111418] text-lg font-bold leading-tight">
+              Sales History
+              <span class="text-[#60758a] text-sm font-normal ml-2">
+                ({{ fromDate || toDate ? "Filtered" : "Latest 10" }})
+              </span>
+            </h3>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead>
+                <tr class="bg-gray-100 border-b border-[#dbe0e6]">
+                  <th
+                    class="px-6 py-3 text-left text-xs font-semibold text-[#111418] uppercase"
+                  >
+                    Date
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-semibold text-[#111418] uppercase"
+                  >
+                    Transaction #
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-semibold text-[#111418] uppercase"
+                  >
+                    Customer
+                  </th>
+                  <th
+                    class="px-6 py-3 text-right text-xs font-semibold text-[#111418] uppercase"
+                  >
+                    Items
+                  </th>
+                  <th
+                    class="px-6 py-3 text-right text-xs font-semibold text-[#111418] uppercase"
+                  >
+                    Total
+                  </th>
+                  <th
+                    class="px-6 py-3 text-center text-xs font-semibold text-[#111418] uppercase"
+                  >
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="loadingHistory" class="border-b border-[#dbe0e6]">
+                  <td colspan="6" class="text-center py-8 text-[#60758a]">
+                    Loading transactions...
+                  </td>
+                </tr>
+                <tr
+                  v-else-if="salesHistory.length === 0"
+                  class="border-b border-[#dbe0e6]"
                 >
-                  <button @click="printPDF(sale.ID)" class="underline">
-                    Print PDF
-                  </button>
-                </td>
-                <td
-                  class="px-6 py-4 whitespace-nowrap text-sm text-blue-500 hover:text-blue-700 cursor-pointer"
+                  <td colspan="6" class="text-center py-8 text-[#60758a]">
+                    No sales data found
+                  </td>
+                </tr>
+                <tr
+                  v-else
+                  v-for="sale in salesHistory"
+                  :key="sale.ID"
+                  class="border-b border-[#dbe0e6] hover:bg-gray-50 transition"
                 >
-                  <button @click="viewDetails(sale.ID)" class="underline">
-                    Lihat Detail
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                  <td class="px-6 py-4 text-sm text-[#111418]">
+                    {{ formatDate(sale.Date) }}
+                  </td>
+                  <td class="px-6 py-4 text-sm text-[#111418] font-medium">
+                    {{ sale.transaction_number || `TRX-${sale.ID}` }}
+                  </td>
+                  <td class="px-6 py-4 text-sm text-[#60758a]">
+                    {{ sale.Customer?.name || "Walk-in" }}
+                  </td>
+                  <td
+                    class="px-6 py-4 text-sm text-right text-[#111418] font-medium"
+                  >
+                    {{ (sale.Items || []).length }} items
+                  </td>
+                  <td
+                    class="px-6 py-4 text-sm text-right text-[#111418] font-bold"
+                  >
+                    {{ formatCurrency(sale.Total) }}
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <button
+                      @click="viewDetails(sale.ID)"
+                      class="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-sm font-medium transition"
+                    >
+                      View
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
-      <!-- Modal untuk Lihat Detail -->
+      <!-- Details Modal -->
       <div
         v-if="showDetailsModal"
         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
       >
         <div
-          class="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+          class="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl"
         >
-          <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-bold">Detail Transaksi</h2>
+          <!-- Modal Header -->
+          <div
+            class="border-b border-[#dbe0e6] p-6 flex justify-between items-center sticky top-0 bg-white"
+          >
+            <h2 class="text-[#111418] text-xl font-bold">
+              Transaction Details
+            </h2>
             <button
               @click="closeDetailsModal"
-              class="text-gray-500 hover:text-gray-700 text-xl"
+              class="text-[#60758a] hover:text-[#111418] text-2xl font-light"
             >
-              &times;
+              ×
             </button>
           </div>
-          <div v-if="selectedSale" class="space-y-4">
-            <p>
-              <strong>Nomor Transaksi:</strong>
-              {{
-                selectedSale.transaction_number ||
-                `TRX-${selectedSale.ID || "N/A"}`
-              }}
-            </p>
-            <p>
-              <strong>Tanggal:</strong>
-              {{ formatDate(selectedSale.Date) || "N/A" }}
-            </p>
-            <p>
-              <strong>Total:</strong>
-              {{ formatCurrency(selectedSale.Total) || "Rp 0" }}
-            </p>
-            <p>
-              <strong>Uang Bayar:</strong>
-              {{ formatCurrency(selectedSale.Paid || 0) || "Rp 0" }}
-            </p>
-            <p>
-              <strong>Kembalian:</strong>
-              {{
-                formatCurrency(
-                  selectedSale.Change ||
-                    (selectedSale.Paid || 0) - (selectedSale.Total || 0)
-                ) || "Rp 0"
-              }}
-            </p>
-            <p>
-              <strong>Customer:</strong>
-              {{ selectedSale.Customer?.name || "N/A" }}
-            </p>
 
-            <h3 class="text-lg font-semibold mt-4">Daftar Barang</h3>
-            <div class="overflow-x-auto">
-              <table class="min-w-full bg-white border border-gray-300">
-                <thead>
-                  <tr class="bg-gray-100">
-                    <th class="px-4 py-2 text-left text-gray-600">
-                      Nama Barang
-                    </th>
-                    <th class="px-4 py-2 text-left text-gray-600">Qty</th>
-                    <th class="px-4 py-2 text-left text-gray-600">Harga</th>
-                    <th class="px-4 py-2 text-left text-gray-600">Subtotal</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    v-for="(item, index) in selectedSale.Items || []"
-                    :key="index"
-                    class="border-t border-gray-300"
-                  >
-                    <td class="px-4 py-2 text-gray-700">
-                      {{ item.Product?.name || "N/A" }}
-                    </td>
-                    <td class="px-4 py-2 text-gray-700">{{ item.Qty || 0 }}</td>
-                    <td class="px-4 py-2 text-gray-700">
-                      {{ formatCurrency(item.Price || 0) }}
-                    </td>
-                    <td class="px-4 py-2 text-gray-700">
-                      {{ formatCurrency((item.Qty || 0) * (item.Price || 0)) }}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+          <!-- Modal Body -->
+          <div v-if="selectedSale" class="p-6 space-y-6">
+            <!-- Transaction Info -->
+            <div class="grid grid-cols-2 gap-6">
+              <div>
+                <p class="text-[#60758a] text-sm font-medium">Transaction #</p>
+                <p class="text-[#111418] text-lg font-bold mt-1">
+                  {{
+                    selectedSale.transaction_number || `TRX-${selectedSale.ID}`
+                  }}
+                </p>
+              </div>
+              <div>
+                <p class="text-[#60758a] text-sm font-medium">Date</p>
+                <p class="text-[#111418] text-lg font-bold mt-1">
+                  {{ formatDate(selectedSale.Date) }}
+                </p>
+              </div>
+              <div>
+                <p class="text-[#60758a] text-sm font-medium">Customer</p>
+                <p class="text-[#111418] text-lg font-bold mt-1">
+                  {{ selectedSale.Customer?.name || "Walk-in Customer" }}
+                </p>
+              </div>
+              <div>
+                <p class="text-[#60758a] text-sm font-medium">Payment Method</p>
+                <p class="text-[#111418] text-lg font-bold mt-1">
+                  {{ selectedSale.payment_method || "Cash" }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Items Table -->
+            <div>
+              <h3 class="text-[#111418] text-lg font-bold mb-4">
+                Items Purchased
+              </h3>
+              <div class="overflow-x-auto rounded-lg border border-[#dbe0e6]">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="bg-gray-100 border-b border-[#dbe0e6]">
+                      <th
+                        class="px-4 py-3 text-left text-[#111418] font-semibold"
+                      >
+                        Product
+                      </th>
+                      <th
+                        class="px-4 py-3 text-right text-[#111418] font-semibold"
+                      >
+                        Qty
+                      </th>
+                      <th
+                        class="px-4 py-3 text-right text-[#111418] font-semibold"
+                      >
+                        Price
+                      </th>
+                      <th
+                        class="px-4 py-3 text-right text-[#111418] font-semibold"
+                      >
+                        Subtotal
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="(item, idx) in selectedSale.Items || []"
+                      :key="idx"
+                      class="border-b border-[#dbe0e6] hover:bg-gray-50"
+                    >
+                      <td class="px-4 py-3 text-[#111418]">
+                        {{ item.Product?.name || "Unknown" }}
+                      </td>
+                      <td
+                        class="px-4 py-3 text-right text-[#111418] font-medium"
+                      >
+                        {{ item.Qty || 0 }}
+                      </td>
+                      <td class="px-4 py-3 text-right text-[#111418]">
+                        {{ formatCurrency(item.Price || 0) }}
+                      </td>
+                      <td class="px-4 py-3 text-right text-[#111418] font-bold">
+                        {{
+                          formatCurrency((item.Qty || 0) * (item.Price || 0))
+                        }}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Summary -->
+            <div
+              class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 space-y-2"
+            >
+              <div class="flex justify-between">
+                <p class="text-[#60758a] font-medium">Subtotal:</p>
+                <p class="text-[#111418] font-bold">
+                  {{ formatCurrency(selectedSale.Total) }}
+                </p>
+              </div>
+              <div class="flex justify-between">
+                <p class="text-[#60758a] font-medium">Payment:</p>
+                <p class="text-[#111418] font-bold">
+                  {{ formatCurrency(selectedSale.Paid || 0) }}
+                </p>
+              </div>
+              <div class="border-t border-blue-200 pt-2 flex justify-between">
+                <p class="text-[#111418] font-bold">Change:</p>
+                <p class="text-[#111418] font-bold text-lg">
+                  {{
+                    formatCurrency(
+                      (selectedSale.Paid || 0) - (selectedSale.Total || 0)
+                    )
+                  }}
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -230,23 +358,48 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import axios from "axios";
 import CashierLayouts from "@/components/CashierLayouts.vue";
 
-const userName = ref("Kasir");
+const userName = ref("Cashier");
 const salesHistory = ref([]);
 const loadingHistory = ref(true);
 const fromDate = ref("");
 const toDate = ref("");
-const showDetailsModal = ref(false); // State untuk modal detail
-const selectedSale = ref(null); // Data transaksi yang dipilih
+const showDetailsModal = ref(false);
+const selectedSale = ref(null);
 
 const api = axios.create({ baseURL: "http://localhost:8081/api/v1" });
 const savedToken = localStorage.getItem("token");
 if (savedToken) {
   api.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
 }
+
+// Computed KPI values
+const totalSales = computed(() => {
+  return salesHistory.value.reduce((sum, sale) => sum + (sale.Total || 0), 0);
+});
+
+const salesCount = computed(() => {
+  return salesHistory.value.length;
+});
+
+const avgTransaction = computed(() => {
+  if (salesCount.value === 0) return 0;
+  return totalSales.value / salesCount.value;
+});
+
+const highestSale = computed(() => {
+  if (salesHistory.value.length === 0) return 0;
+  return Math.max(...salesHistory.value.map((s) => s.Total || 0));
+});
+
+const totalItems = computed(() => {
+  return salesHistory.value.reduce((sum, sale) => {
+    return sum + (sale.Items || []).length;
+  }, 0);
+});
 
 const fetchDashboardData = async () => {
   loadingHistory.value = true;
@@ -289,7 +442,7 @@ const fetchDashboardData = async () => {
     } else {
       console.warn("No 'data' property in response:", data);
       salesHistory.value = [];
-      alert("Tidak ada data dari server. Periksa respons API.");
+      alert("No data from server. Check API response.");
     }
   } catch (error) {
     console.error("Error fetch:", error);
@@ -297,12 +450,12 @@ const fetchDashboardData = async () => {
       console.error("Status:", error.response.status);
       console.error("Response data:", error.response.data);
       alert(
-        `Error mengambil data: ${error.response.status} - ${
+        `Error fetching data: ${error.response.status} - ${
           error.response.data.error || error.message
         }`
       );
     } else {
-      alert("Kesalahan jaringan atau server tidak tersedia. Cek console.");
+      alert("Network error or server unavailable. Check console.");
     }
     salesHistory.value = [];
   } finally {
@@ -340,30 +493,6 @@ const formatCurrency = (amount) => {
     : "Rp 0";
 };
 
-const printPDF = async (saleId) => {
-  try {
-    const response = await api.get(`/history/sales/${saleId}/pdf`, {
-      responseType: "blob",
-    });
-
-    const blob = new Blob([response.data], { type: "application/pdf" });
-    const url = window.URL.createObjectURL(blob);
-    window.open(url);
-
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `struk_${saleId}.pdf`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    window.URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error("Error printing PDF:", error);
-    alert("Gagal mencetak PDF. Cek console untuk detail.");
-  }
-};
-
 const viewDetails = async (saleId) => {
   try {
     const response = await api.get(`/history/sales/${saleId}`);
@@ -376,11 +505,11 @@ const viewDetails = async (saleId) => {
       Customer: response.data.Customer || { name: "N/A" },
       Items: response.data.Items || [],
     };
-    console.log("Selected Sale Data:", selectedSale.value); // Debugging
+    console.log("Selected Sale Data:", selectedSale.value);
     showDetailsModal.value = true;
   } catch (error) {
     console.error("Error fetching sale details:", error);
-    alert("Gagal memuat detail transaksi. Cek console untuk detail.");
+    alert("Failed to load transaction details. Check console.");
   }
 };
 
@@ -395,5 +524,5 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Tambahkan style jika diperlukan */
+/* Tailwind styles applied inline */
 </style>
