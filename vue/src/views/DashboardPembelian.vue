@@ -48,7 +48,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import PurchasingLayouts from "../components/PurchasingLayouts.vue";
-import axios from "axios";
+import api from "../services/api.js";
 
 // State untuk menyimpan data dashboard
 const dashboardData = ref({
@@ -58,57 +58,64 @@ const dashboardData = ref({
 });
 const loading = ref(true);
 
-// Fungsi untuk mengambil data dari backend
+// Helper untuk mengambil total dari berbagai bentuk respons API
+function getTotalFromResponse(resp) {
+  if (!resp) return 0;
+  const d = resp.data ?? resp;
+  // Cek berbagai struktur yang mungkin dari backend
+  return (
+    d.total ?? d?.data?.total ?? d?.meta?.total ?? d?.data?.meta?.total ?? 0
+  );
+}
+
+// Helper untuk mendapatkan array purchases dari respons
+function getPurchasesArray(resp) {
+  if (!resp) return [];
+  const d = resp.data ?? resp;
+  return d?.data?.data ?? d?.data ?? d?.items ?? [];
+}
+
+// Fungsi untuk mengambil data dari backend (menggunakan instance `api`)
 const fetchDashboardData = async () => {
   try {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      console.error(
-        "Token autentikasi tidak ditemukan. Silakan login kembali."
-      );
-      return;
-    }
-
     loading.value = true;
 
     // Ambil jumlah purchase orders dengan status SUBMITTED
-    const purchaseResponse = await axios.get(
-      "http://localhost:8081/api/v1/pembelian/purchases",
-      {
-        params: { status: "SUBMITTED", size: 1 },
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
+    const purchaseResponse = await api.get("/pembelian/purchases", {
+      params: { status: "SUBMITTED", size: 1 },
+    });
     dashboardData.value.purchase_orders_to_process =
-      purchaseResponse.data.data.total || 0;
+      getTotalFromResponse(purchaseResponse) || 0;
 
     // Ambil jumlah purchase returns dengan status PENDING
-    const returnResponse = await axios.get(
-      "http://localhost:8081/api/v1/pembelian/purchase-returns",
-      {
-        params: { status: "PENDING", size: 1 },
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-    dashboardData.value.returns_to_review = returnResponse.data.total || 0;
+    const returnResponse = await api.get("/pembelian/purchase-returns", {
+      params: { status: "PENDING", size: 1 },
+    });
+    dashboardData.value.returns_to_review =
+      getTotalFromResponse(returnResponse);
 
-    // Ambil data produk dari pembelian untuk menghitung stok (karena /api/v1/products mungkin tidak sesuai)
-    const allPurchasesResponse = await axios.get(
-      "http://localhost:8081/api/v1/pembelian/purchases",
-      {
-        params: { size: 100 }, // Ambil lebih banyak data untuk menghitung stok
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-    const allItems = allPurchasesResponse.data.data.data.flatMap(
-      (purchase) => purchase.Items
-    );
-    const uniqueProductsInStock = new Set(
-      allItems
-        .filter((item) => item.Product.stock > 0)
-        .map((item) => item.Product.id)
-    );
-    dashboardData.value.products_in_stock = uniqueProductsInStock.size;
+    // Ambil data pembelian (lebih banyak) untuk menghitung produk yang ada di stok
+    const allPurchasesResponse = await api.get("/pembelian/purchases", {
+      params: { size: 200 },
+    });
+
+    const purchases = getPurchasesArray(allPurchasesResponse);
+
+    // Flatten items dengan fallback properti yang berbeda
+    const allItems = purchases.flatMap((purchase) => {
+      return purchase.Items ?? purchase.items ?? purchase.PurchaseItems ?? [];
+    });
+
+    // Hitung produk unik dimana stock > 0 dengan fallback nama properti
+    const uniqueProducts = new Set();
+    allItems.forEach((item) => {
+      const product = item.Product ?? item.product ?? item.ProductDto ?? {};
+      const stock = product.stock ?? product.Stock ?? product.qty ?? 0;
+      const id = product.id ?? product.ID ?? product.product_id ?? null;
+      if (id && Number(stock) > 0) uniqueProducts.add(String(id));
+    });
+
+    dashboardData.value.products_in_stock = uniqueProducts.size;
   } catch (error) {
     console.error("Gagal mengambil data dashboard:", error);
     if (error.response) {
